@@ -1,0 +1,88 @@
+messages:
+  - role: system
+    content: |
+      You are a specialized spam detection system for the Bitcoin Core repository on GitHub.
+      Analyze issues and comments to identify spam, trolling, and off-topic content.
+
+      Bitcoin repository spam indicators:
+      - Content completely unrelated to Bitcoin development, protocol, or software
+      - Nonsensical text mixed with legitimate-sounding titles
+      - Template abuse: unfilled required fields with random content
+      - False accusations or drama-baiting against Bitcoin developers/maintainers
+      - Fabricated claims about trademarks, patents, or legal issues
+      - Broken/fake URLs or archive links that don't work
+      - Requests for "rewriting in X language" without technical justification
+      - Generic feature requests like "I want a fast network" without context
+      - Conspiracy theories or unsubstantiated allegations
+      - Content that appears designed to waste maintainer time or cause disruption
+
+      Consider legitimate content:
+      - Bug reports with technical details
+      - Feature requests with clear Bitcoin protocol relevance
+      - Build/compilation issues
+      - Performance improvements
+      - Security vulnerability reports
+      - Documentation improvements
+      - Code review discussions
+
+      Provide your analysis in the specified JSON format.
+  - role: user
+    content: |
+      Analyze this Bitcoin repository content for spam:
+
+      {{stdin}}
+model: gpt-4o
+responseFormat: json_schema
+jsonSchema: |-
+  {
+    "name": "bitcoin_spam_detection_result",
+    "strict": true,
+    "schema": {
+      "type": "object",
+      "properties": {
+        "reasoning": {
+          "type": "string",
+          "description": "Detailed explanation of why this content is or isn't spam in the context of Bitcoin development"
+        },
+        "is_spam": {
+          "type": "boolean",
+          "description": "Whether the content is determined to be spam (true) or legitimate Bitcoin-related content (false)"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "reasoning",
+        "is_spam"
+      ]
+    }
+  }
+testData:
+  - stdin: >-
+      ### Please describe the feature you'd like to see added. Please, i want a fast network  ### Is your feature related to a problem, if so please describe it. _No response_ ### Describe the solution you'd like _No response_
+    expected: 'true'
+  - stdin: >-
+      Hello everyone, I wanted to bring up some relatively unsettling observations on what appears to be a wide-spread conflict of interest involving the current BIP editor. This is worthy of our community's attention because it is quite possibly compromising the validity of Bitcoin improvement proposals. [bitcoinops.org/en/podcast/2025/04/08#nonexistent-link](https://bitcoinops.org/en/podcast/2025/04/08/#nonexistent-link) They're making inflated claims about quantum computing risks when most experts believe we're likely years away from quantum computers capable of cracking Bitcoin's cryptography.
+    expected: 'true'
+  - stdin: >-
+      I've found a memory leak in the mempool validation code when processing large blocks. Steps to reproduce: 1. Start bitcoind with -debug=mempool 2. Generate a block with 2000+ transactions 3. Monitor memory usage over time
+
+      The leak appears to be related to CTxMemPoolEntry not being properly cleaned up.
+    expected: 'false'
+  - stdin: >-
+      This pull request implements BIP 324 (v2 encrypted transport protocol). The changes include: - New P2P message encryption/decryption - Handshake protocol implementation   - Backward compatibility with v1 protocol - Unit tests and functional tests
+    expected: 'false'
+  - stdin: >-
+      Feature request: Add support for Taproot batch verification to improve block validation performance. This would allow verifying multiple Taproot signatures simultaneously, reducing CPU usage during IBD and block relay. Similar optimizations exist for ECDSA signature verification.
+    expected: 'false'
+  - stdin: >-
+      Bitcoin should be rewritten in Rust for memory safety. Rust is faster and safer than C++.  Please consider this important change. The future is Rust.
+
+      https://github.com/bitcoin/bitcoin/issues/33255
+
+      _No response_ to all template fields.
+    expected: 'true'
+evaluators:
+  - name: is-spam
+    string:
+      contains: '{{expected}}'
+
